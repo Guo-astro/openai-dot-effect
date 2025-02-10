@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import { parseGIF, decompressFrames } from "gifuct-js";
+import { GIF } from "react-gif-editor";
 
 // Define an interface for GIF frames (as returned by gifuct-js)
 interface GifFrame {
@@ -25,8 +26,13 @@ interface GifFrame {
   patch: Uint8ClampedArray;
 }
 
+interface DownloadOptions {
+  fastForwardFactor: number; // e.g. 2 means half the delay per frame
+  quality: number; // Lower numbers here mean higher quality (and larger files)
+}
+
 const DotEffectProcessor: React.FC = () => {
-  // State variables
+  // Image processing settings
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [blockSize, setBlockSize] = useState<number>(6);
   const [maxRadius, setMaxRadius] = useState<number>(3);
@@ -35,25 +41,29 @@ const DotEffectProcessor: React.FC = () => {
   const [darkBackground, setDarkBackground] = useState<boolean>(false);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
+  // Download options for GIF
+  const [fastForwardFactor, setFastForwardFactor] = useState<number>(1);
+  const [gifQuality, setGifQuality] = useState<number>(15);
+
   // Refs for canvas, preview container, and file input
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Process a static (non-GIF) image
+  // Ref to store captured frames (each frame is a canvas element)
+  const capturedFramesRef = useRef<HTMLCanvasElement[]>([]);
+
+  // Process a static image (non-GIF)
   const processImage = (sourceImage: HTMLImageElement): void => {
     const canvas = canvasRef.current;
     const previewContainer = previewRef.current;
     if (!canvas || !previewContainer) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Get preview container dimensions
+    // Determine canvas dimensions based on preview container
     const previewWidth = previewContainer.clientWidth;
     const previewHeight = previewContainer.clientHeight;
-
-    // Determine maximum safe canvas dimensions
     const MAX_CANVAS_SIZE = 4096;
     const scale = Math.min(
       MAX_CANVAS_SIZE / sourceImage.width,
@@ -61,10 +71,8 @@ const DotEffectProcessor: React.FC = () => {
       1
     );
 
-    // Calculate dimensions maintaining aspect ratio
     const imageAspectRatio = sourceImage.width / sourceImage.height;
     const containerAspectRatio = previewWidth / previewHeight;
-
     let width: number, height: number;
     if (imageAspectRatio > containerAspectRatio) {
       width = Math.min(previewWidth, sourceImage.width * scale);
@@ -75,15 +83,11 @@ const DotEffectProcessor: React.FC = () => {
     }
     width = Math.floor(width);
     height = Math.floor(height);
-
-    // Set canvas dimensions
     canvas.width = width;
     canvas.height = height;
 
-    // Draw the original image
+    // Draw original image
     ctx.drawImage(sourceImage, 0, 0, width, height);
-
-    // Get image data for processing
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
 
@@ -94,13 +98,10 @@ const DotEffectProcessor: React.FC = () => {
     // Draw dot effect
     const stepSize = blockSize + spacing;
     ctx.fillStyle = darkBackground ? "white" : "black";
-
     for (let y = 0; y < height; y += stepSize) {
       for (let x = 0; x < width; x += stepSize) {
         let totalBrightness = 0;
         let samples = 0;
-
-        // Sample brightness from the block
         for (let sy = 0; sy < blockSize; sy++) {
           for (let sx = 0; sx < blockSize; sx++) {
             const sampleX = x + sx;
@@ -114,10 +115,7 @@ const DotEffectProcessor: React.FC = () => {
             }
           }
         }
-
         const avgBrightness = totalBrightness / samples;
-
-        // Draw dot if above threshold
         if (avgBrightness > threshold * 2.55) {
           const radius = (maxRadius * avgBrightness) / 255;
           ctx.beginPath();
@@ -128,7 +126,7 @@ const DotEffectProcessor: React.FC = () => {
     }
   };
 
-  // Process and animate a GIF using its frames
+  // Animate GIF frames, applying the dot effect to each frame and capturing them
   const animateGif = (
     frames: GifFrame[],
     fullWidth: number,
@@ -141,6 +139,9 @@ const DotEffectProcessor: React.FC = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Reset captured frames for the new animation
+    capturedFramesRef.current = [];
+
     const renderFrame = () => {
       const frame = frames[currentFrame];
 
@@ -152,7 +153,7 @@ const DotEffectProcessor: React.FC = () => {
       if (!offCtx) return;
       offCtx.clearRect(0, 0, fullWidth, fullHeight);
 
-      // Create an ImageData object from the frame’s patch and draw it
+      // Create ImageData from the frame patch and draw it
       const frameImageData = new ImageData(
         frame.patch,
         frame.dims.width,
@@ -160,7 +161,7 @@ const DotEffectProcessor: React.FC = () => {
       );
       offCtx.putImageData(frameImageData, frame.dims.left, frame.dims.top);
 
-      // Get preview container dimensions and compute scaling
+      // Determine canvas dimensions based on preview container
       const previewWidth = previewContainer.clientWidth;
       const previewHeight = previewContainer.clientHeight;
       const MAX_CANVAS_SIZE = 4096;
@@ -169,7 +170,6 @@ const DotEffectProcessor: React.FC = () => {
         MAX_CANVAS_SIZE / fullHeight,
         1
       );
-
       const imageAspectRatio = fullWidth / fullHeight;
       const containerAspectRatio = previewWidth / previewHeight;
       let width: number, height: number;
@@ -182,23 +182,15 @@ const DotEffectProcessor: React.FC = () => {
       }
       width = Math.floor(width);
       height = Math.floor(height);
-
-      // Set visible canvas dimensions
       canvas.width = width;
       canvas.height = height;
 
-      // Draw the composed frame onto the visible canvas
+      // Draw offscreen composited frame onto visible canvas
       ctx.drawImage(offscreen, 0, 0, width, height);
-
-      // Get image data for dot-effect processing
       const processedImageData = ctx.getImageData(0, 0, width, height);
       const data = processedImageData.data;
-
-      // Clear canvas and fill background
       ctx.fillStyle = darkBackground ? "black" : "white";
       ctx.fillRect(0, 0, width, height);
-
-      // Draw dots for dot effect
       const stepSize = blockSize + spacing;
       ctx.fillStyle = darkBackground ? "white" : "black";
       for (let y = 0; y < height; y += stepSize) {
@@ -234,10 +226,19 @@ const DotEffectProcessor: React.FC = () => {
         }
       }
 
+      // Capture the processed frame by copying the visible canvas
+      const frameCanvas = document.createElement("canvas");
+      frameCanvas.width = canvas.width;
+      frameCanvas.height = canvas.height;
+      const frameCtx = frameCanvas.getContext("2d");
+      if (frameCtx) {
+        frameCtx.drawImage(canvas, 0, 0);
+        capturedFramesRef.current.push(frameCanvas);
+      }
+
       // Move to the next frame
       currentFrame = (currentFrame + 1) % frames.length;
-      // Frame delay is provided in hundredths of a second; default to 100ms if not provided.
-      const delay = frame.delay ? frame.delay * 10 : 100;
+      const delay = frame.delay ? frame.delay * 10 : 100; // delay in ms
       setTimeout(() => {
         requestAnimationFrame(renderFrame);
       }, delay);
@@ -246,28 +247,73 @@ const DotEffectProcessor: React.FC = () => {
     renderFrame();
   };
 
-  // Handle the uploaded file (static image or GIF)
+  // Download the processed frames as a new GIF
+  const downloadProcessedGif = (
+    frames: HTMLCanvasElement[],
+    options: DownloadOptions
+  ) => {
+    if (frames.length === 0) return;
+    const { fastForwardFactor, quality } = options;
+    const width = frames[0].width;
+    const height = frames[0].height;
+
+    // Create a new GIF encoder instance
+    const gif = new GIF({
+      workers: 2,
+      quality, // Lower numbers produce higher quality (but larger files)
+      width,
+      height,
+    });
+
+    // Add each captured frame with a delay adjusted by fastForwardFactor
+    frames.forEach((frameCanvas) => {
+      gif.addFrame(frameCanvas, { copy: true, delay: 100 / fastForwardFactor });
+    });
+
+    // When finished, trigger a download
+    gif.on("finished", (blob: Blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "dot-effect.gif";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    gif.render();
+  };
+
+  // Handle file upload (static images or GIF)
   const handleFile = (file: File | undefined): void => {
     if (!file) return;
     if (file.type === "image/gif") {
-      // Process GIF files: read as ArrayBuffer and decode frames.
+      // For GIF files, decode and animate
       const reader = new FileReader();
       reader.onload = (e: ProgressEvent<FileReader>) => {
         const buffer = e.target?.result;
         if (buffer instanceof ArrayBuffer) {
           const gif = parseGIF(buffer);
           const frames: GifFrame[] = decompressFrames(gif, true) as GifFrame[];
-          // Use logical screen dimensions if available; otherwise, fall back to frame dimensions.
+          // Use global dimensions (LSD) if available; else compute max dimensions from frames
           const fullWidth =
-            gif.lsd && gif.lsd.width ? gif.lsd.width : frames[0].dims.width;
+            gif.lsd && gif.lsd.width
+              ? gif.lsd.width
+              : Math.max(
+                  ...frames.map((frame) => frame.dims.left + frame.dims.width)
+                );
           const fullHeight =
-            gif.lsd && gif.lsd.height ? gif.lsd.height : frames[0].dims.height;
+            gif.lsd && gif.lsd.height
+              ? gif.lsd.height
+              : Math.max(
+                  ...frames.map((frame) => frame.dims.top + frame.dims.height)
+                );
           animateGif(frames, fullWidth, fullHeight);
         }
       };
       reader.readAsArrayBuffer(file);
     } else if (file.type.startsWith("image/")) {
-      // Process non-GIF image files
+      // For static images
       const reader = new FileReader();
       reader.onload = (e: ProgressEvent<FileReader>) => {
         const result = e.target?.result;
@@ -302,7 +348,7 @@ const DotEffectProcessor: React.FC = () => {
     setIsDragging(false);
   };
 
-  // Re-run processing on window resize
+  // For static images, re-run processing on window resize
   useEffect(() => {
     let resizeTimer: number;
     const handleResize = () => {
@@ -313,7 +359,6 @@ const DotEffectProcessor: React.FC = () => {
         }
       }, 100);
     };
-
     window.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
@@ -321,7 +366,7 @@ const DotEffectProcessor: React.FC = () => {
     };
   }, [image, blockSize, maxRadius, spacing, threshold, darkBackground]);
 
-  // Re-run processing when settings change (for static images)
+  // Re-run processing when static image settings change
   useEffect(() => {
     if (image) {
       processImage(image);
@@ -374,6 +419,7 @@ const DotEffectProcessor: React.FC = () => {
               </div>
             </div>
 
+            {/* Settings Controls */}
             <div className="space-y-4">
               {/* Block Size */}
               <div className="space-y-2">
@@ -497,9 +543,58 @@ const DotEffectProcessor: React.FC = () => {
                   }
                 />
               </div>
+
+              {/* Fast Forward Control */}
+              <div className="flex items-center justify-between">
+                <Label>Fast Forward</Label>
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  value={fastForwardFactor}
+                  onChange={(e) =>
+                    setFastForwardFactor(parseFloat(e.target.value))
+                  }
+                />
+                <span>{fastForwardFactor}x</span>
+              </div>
+
+              {/* GIF Quality Control */}
+              <div className="flex items-center justify-between">
+                <Label>GIF Quality</Label>
+                <input
+                  type="number"
+                  value={gifQuality}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value, 10);
+                    if (!isNaN(value)) {
+                      setGifQuality(value);
+                    }
+                  }}
+                  className="w-16 px-2 py-1 text-right text-sm border rounded"
+                />
+                <span className="ml-1 text-sm text-gray-500">
+                  (Lower number = better quality)
+                </span>
+              </div>
             </div>
           </div>
         </Card>
+
+        <div className="mt-4">
+          <button
+            onClick={() =>
+              downloadProcessedGif(capturedFramesRef.current, {
+                fastForwardFactor,
+                quality: gifQuality,
+              })
+            }
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+          >
+            Download GIF
+          </button>
+        </div>
 
         <footer className="py-4 text-center text-sm text-gray-500">
           Created by{" "}
