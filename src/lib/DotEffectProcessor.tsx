@@ -38,7 +38,11 @@ export const DotEffectProcessor: React.FC = () => {
   const [maxRadius, setMaxRadius] = useState<number>(3);
   const [spacing, setSpacing] = useState<number>(1);
   const [threshold, setThreshold] = useState<number>(20);
+  // Existing setting for the preview canvas background:
   const [darkBackground, setDarkBackground] = useState<boolean>(false);
+  // New state for the overall UI dark mode:
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
   // Download options for GIF
@@ -400,22 +404,28 @@ export const DotEffectProcessor: React.FC = () => {
   }, [blockSize, maxRadius, spacing, threshold, darkBackground, image]);
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    // Add the "dark" class to the root element when isDarkMode is true
+    <div
+      className={`${
+        isDarkMode ? "dark" : ""
+      } min-h-screen flex flex-col lg:flex-row`}
+    >
       {/* Controls Panel */}
       <div className="w-full lg:w-96 p-6 flex flex-col">
-        <Card className="flex-1">
+        <Card className="flex-1 dark:bg-gray-800 dark:text-white">
           <div className="p-6 space-y-6">
             <div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors
-                  ${
-                    isDragging
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300"
-                  }
-                  ${image ? "border-green-500" : ""}`}
+                ${
+                  isDragging
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900"
+                    : "border-gray-300 dark:border-gray-600"
+                }
+                ${image ? "border-green-500" : ""}
+              `}
             >
               <input
                 type="file"
@@ -427,12 +437,12 @@ export const DotEffectProcessor: React.FC = () => {
                 className="hidden"
               />
               <div className="flex flex-col items-center gap-2">
-                <Upload className="w-12 h-12 text-gray-400" />
-                <p className="text-sm text-gray-600">
+                <Upload className="w-12 h-12 text-gray-400 dark:text-gray-300" />
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   Drag and drop an image here, or{" "}
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-blue-600 hover:text-blue-700"
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                   >
                     browse
                   </button>
@@ -443,6 +453,15 @@ export const DotEffectProcessor: React.FC = () => {
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* UI Dark Mode Toggle */}
+            <div className="flex items-center justify-between">
+              <Label>UI Dark Mode</Label>
+              <Switch
+                checked={isDarkMode}
+                onCheckedChange={(checked: boolean) => setIsDarkMode(checked)}
+              />
             </div>
 
             {/* Settings Controls */}
@@ -461,7 +480,7 @@ export const DotEffectProcessor: React.FC = () => {
                           setBlockSize(value);
                         }
                       }}
-                      className="w-16 px-2 py-1 text-right text-sm border rounded"
+                      className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
                     />
                     <span className="ml-1 text-sm text-gray-500">px</span>
                   </div>
@@ -489,7 +508,7 @@ export const DotEffectProcessor: React.FC = () => {
                           setMaxRadius(value);
                         }
                       }}
-                      className="w-16 px-2 py-1 text-right text-sm border rounded"
+                      className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
                     />
                     <span className="ml-1 text-sm text-gray-500">px</span>
                   </div>
@@ -517,7 +536,7 @@ export const DotEffectProcessor: React.FC = () => {
                           setSpacing(value);
                         }
                       }}
-                      className="w-16 px-2 py-1 text-right text-sm border rounded"
+                      className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
                     />
                     <span className="ml-1 text-sm text-gray-500">px</span>
                   </div>
@@ -545,7 +564,7 @@ export const DotEffectProcessor: React.FC = () => {
                           setThreshold(value);
                         }
                       }}
-                      className="w-16 px-2 py-1 text-right text-sm border rounded"
+                      className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
                     />
                     <span className="ml-1 text-sm text-gray-500">%</span>
                   </div>
@@ -559,7 +578,7 @@ export const DotEffectProcessor: React.FC = () => {
                 />
               </div>
 
-              {/* Dark Background Switch */}
+              {/* Dark Background Switch for the Preview */}
               <div className="flex items-center justify-between">
                 <Label>Dark Background</Label>
                 <Switch
@@ -598,7 +617,7 @@ export const DotEffectProcessor: React.FC = () => {
                       setGifQuality(value);
                     }
                   }}
-                  className="w-16 px-2 py-1 text-right text-sm border rounded"
+                  className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
                 />
                 <span className="ml-1 text-sm text-gray-500">
                   (Lower number = better quality)
@@ -622,13 +641,13 @@ export const DotEffectProcessor: React.FC = () => {
           </button>
         </div>
 
-        <footer className="py-4 text-center text-sm text-gray-500">
+        <footer className="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
           Created by{" "}
           <a
             href="https://x.com/dnangellight"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800"
+            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
           >
             @goastro
           </a>
