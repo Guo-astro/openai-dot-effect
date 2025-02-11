@@ -1,1 +1,1 @@
-export { OpenAIDotEffect } from "@/lib/DotEffectProcessor";
+export { DotEffectProcessor } from "@/lib/DotEffectProcessor";
