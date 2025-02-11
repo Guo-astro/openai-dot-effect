@@ -480,7 +480,7 @@ export const DotEffectProcessor: React.FC = () => {
                           setBlockSize(value);
                         }
                       }}
-                      className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
+                      className="w-16 px-2 py-1 text-right text-sm border border-gray-300 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600"
                     />
                     <span className="ml-1 text-sm text-gray-500">px</span>
                   </div>
@@ -508,7 +508,7 @@ export const DotEffectProcessor: React.FC = () => {
                           setMaxRadius(value);
                         }
                       }}
-                      className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
+                      className="w-16 px-2 py-1 text-right text-sm border border-gray-300 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600"
                     />
                     <span className="ml-1 text-sm text-gray-500">px</span>
                   </div>
@@ -536,7 +536,7 @@ export const DotEffectProcessor: React.FC = () => {
                           setSpacing(value);
                         }
                       }}
-                      className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
+                      className="w-16 px-2 py-1 text-right text-sm border border-gray-300 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600"
                     />
                     <span className="ml-1 text-sm text-gray-500">px</span>
                   </div>
@@ -564,7 +564,7 @@ export const DotEffectProcessor: React.FC = () => {
                           setThreshold(value);
                         }
                       }}
-                      className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
+                      className="w-16 px-2 py-1 text-right text-sm border border-gray-300 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600"
                     />
                     <span className="ml-1 text-sm text-gray-500">%</span>
                   </div>
@@ -601,6 +601,7 @@ export const DotEffectProcessor: React.FC = () => {
                   onChange={(e) =>
                     setFastForwardFactor(parseFloat(e.target.value))
                   }
+                  className="w-full accent-blue-500 dark:accent-blue-400"
                 />
                 <span>{fastForwardFactor}x</span>
               </div>
@@ -617,7 +618,7 @@ export const DotEffectProcessor: React.FC = () => {
                       setGifQuality(value);
                     }
                   }}
-                  className="w-16 px-2 py-1 text-right text-sm border rounded dark:bg-gray-700 dark:text-white"
+                  className="w-16 px-2 py-1 text-right text-sm border border-gray-300 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 />
                 <span className="ml-1 text-sm text-gray-500">
                   (Lower number = better quality)
@@ -635,7 +636,7 @@ export const DotEffectProcessor: React.FC = () => {
                 quality: gifQuality,
               })
             }
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
           >
             Download GIF
           </button>
