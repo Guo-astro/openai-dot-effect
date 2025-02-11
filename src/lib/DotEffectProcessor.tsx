@@ -31,7 +31,7 @@ interface DownloadOptions {
   quality: number; // Lower numbers here mean higher quality (and larger files)
 }
 
-const DotEffectProcessor: React.FC = () => {
+export const DotEffectProcessor: React.FC = () => {
   // Image processing settings
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [blockSize, setBlockSize] = useState<number>(6);
@@ -647,5 +647,3 @@ const DotEffectProcessor: React.FC = () => {
     </div>
   );
 };
-
-export default DotEffectProcessor;
