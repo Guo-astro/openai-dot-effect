@@ -53,6 +53,22 @@ const DotEffectProcessor: React.FC = () => {
   // Ref to store captured frames (each frame is a canvas element)
   const capturedFramesRef = useRef<HTMLCanvasElement[]>([]);
 
+  // To have the animation loop always read the latest settings, create refs for each setting:
+  const blockSizeRef = useRef(blockSize);
+  const maxRadiusRef = useRef(maxRadius);
+  const spacingRef = useRef(spacing);
+  const thresholdRef = useRef(threshold);
+  const darkBackgroundRef = useRef(darkBackground);
+
+  // Update the refs when state changes
+  useEffect(() => {
+    blockSizeRef.current = blockSize;
+    maxRadiusRef.current = maxRadius;
+    spacingRef.current = spacing;
+    thresholdRef.current = threshold;
+    darkBackgroundRef.current = darkBackground;
+  }, [blockSize, maxRadius, spacing, threshold, darkBackground]);
+
   // Process a static image (non-GIF)
   const processImage = (sourceImage: HTMLImageElement): void => {
     const canvas = canvasRef.current;
@@ -95,7 +111,7 @@ const DotEffectProcessor: React.FC = () => {
     ctx.fillStyle = darkBackground ? "black" : "white";
     ctx.fillRect(0, 0, width, height);
 
-    // Draw dot effect
+    // Draw dot effect using current settings
     const stepSize = blockSize + spacing;
     ctx.fillStyle = darkBackground ? "white" : "black";
     for (let y = 0; y < height; y += stepSize) {
@@ -126,7 +142,8 @@ const DotEffectProcessor: React.FC = () => {
     }
   };
 
-  // Animate GIF frames, applying the dot effect to each frame and capturing them
+  // Animate GIF frames, applying the dot effect to each frame and capturing them.
+  // Here, we use refs (blockSizeRef, etc.) so that slider changes are immediately used.
   const animateGif = (
     frames: GifFrame[],
     fullWidth: number,
@@ -185,20 +202,29 @@ const DotEffectProcessor: React.FC = () => {
       canvas.width = width;
       canvas.height = height;
 
-      // Draw offscreen composited frame onto visible canvas
+      // Draw the composited frame onto the visible canvas
       ctx.drawImage(offscreen, 0, 0, width, height);
       const processedImageData = ctx.getImageData(0, 0, width, height);
       const data = processedImageData.data;
-      ctx.fillStyle = darkBackground ? "black" : "white";
+
+      // Clear canvas and set background using current settings from refs
+      ctx.fillStyle = darkBackgroundRef.current ? "black" : "white";
       ctx.fillRect(0, 0, width, height);
-      const stepSize = blockSize + spacing;
-      ctx.fillStyle = darkBackground ? "white" : "black";
+
+      const currentBlockSize = blockSizeRef.current;
+      const currentSpacing = spacingRef.current;
+      const currentThreshold = thresholdRef.current;
+      const currentMaxRadius = maxRadiusRef.current;
+
+      const stepSize = currentBlockSize + currentSpacing;
+      ctx.fillStyle = darkBackgroundRef.current ? "white" : "black";
+
       for (let y = 0; y < height; y += stepSize) {
         for (let x = 0; x < width; x += stepSize) {
           let totalBrightness = 0;
           let samples = 0;
-          for (let sy = 0; sy < blockSize; sy++) {
-            for (let sx = 0; sx < blockSize; sx++) {
+          for (let sy = 0; sy < currentBlockSize; sy++) {
+            for (let sx = 0; sx < currentBlockSize; sx++) {
               const sampleX = x + sx;
               const sampleY = y + sy;
               if (sampleX < width && sampleY < height) {
@@ -211,12 +237,12 @@ const DotEffectProcessor: React.FC = () => {
             }
           }
           const avgBrightness = totalBrightness / samples;
-          if (avgBrightness > threshold * 2.55) {
-            const radius = (maxRadius * avgBrightness) / 255;
+          if (avgBrightness > currentThreshold * 2.55) {
+            const radius = (currentMaxRadius * avgBrightness) / 255;
             ctx.beginPath();
             ctx.arc(
-              x + blockSize / 2,
-              y + blockSize / 2,
+              x + currentBlockSize / 2,
+              y + currentBlockSize / 2,
               radius,
               0,
               Math.PI * 2
@@ -599,12 +625,12 @@ const DotEffectProcessor: React.FC = () => {
         <footer className="py-4 text-center text-sm text-gray-500">
           Created by{" "}
           <a
-            href="https://x.com/btibor91"
+            href="https://x.com/dnangellight"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:text-blue-800"
           >
-            @btibor91
+            @goastro
           </a>
         </footer>
       </div>
